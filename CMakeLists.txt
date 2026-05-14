@@ -235,9 +235,13 @@ if(TARGET Minecraft.Server)
 endif()
 
 set(_item_map_inputs
-  "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.World/Tile.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.World/Item.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.World/Tile.h"
 )
+
+if(CMAKE_CROSSCOMPILING AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  string(REPLACE ";" "\\;" _item_map_inputs "${_item_map_inputs}")
+endif()
 
 #neo: added ItemNameMap generation
 add_custom_command(
