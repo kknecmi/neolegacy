@@ -2,9 +2,9 @@
 
 ### Bug Fixes
 - Fixed Podzol bottom face displaying incorrect texture (was using side texture instead of dirt)
-- Fixed cursor icon not updating when hovering over UI elements
 
 ### Changes
+- Cursor icon now changes when hovering over different UI elements
 - Added TU31 parity changes which include:
   - Creepers can now be ignited with Flint and Steel
   - Village gravel roads now have Cobblestone underneath
