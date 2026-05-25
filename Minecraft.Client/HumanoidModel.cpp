@@ -593,6 +593,12 @@ void HumanoidModel::setupAnim(float time, float r, float bob, float yRot, float 
 		if (sleeve1)
 			sleeve1->yRot=0.0f;
 
+		if (holdingRightHand == 3)
+		{
+			arm0->yRot = -0.4f;
+			if (sleeve0) sleeve0->yRot = -0.4f;
+		}
+
 		if (attackTime > -9990.0f)
 		{
 			float swing = attackTime;
