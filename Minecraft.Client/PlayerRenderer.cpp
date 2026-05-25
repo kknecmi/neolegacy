@@ -635,10 +635,10 @@ void PlayerRenderer::additionalRendering(shared_ptr<LivingEntity> _mob, float a)
 				{
 					if (anim == UseAnim_block)
 					{
-						glTranslatef(0.05f, 0, -0.1f);
-						glRotatef(-50, 0, 1, 0);
-						glRotatef(-10, 1, 0, 0);
-						glRotatef(-60, 0, 0, 1);
+						glTranslatef(-0.015f, -0.05f, -0.08f);
+						glRotatef(-20, 0, 1, 0);
+						glRotatef(10, 1, 0, 0);
+						glRotatef(0, 0, 0, 1);
 					}
 				}
 				glTranslatef(0, 3 / 16.0f, 0);
