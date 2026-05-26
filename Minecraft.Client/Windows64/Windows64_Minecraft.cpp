@@ -834,6 +834,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		return FALSE;
 	}
 
+
+
 	return TRUE;
 }
 
@@ -1463,7 +1465,6 @@ void CleanupDevice()
 static Minecraft* InitialiseMinecraftRuntime()
 {
 	app.loadMediaArchive();
-
 	// @CDevJoud: No need to call this method as it gets called once in `InitDevice()`
 	// Calling it again and it results of 20MB of memory leak!
 	//RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
@@ -1583,7 +1584,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	// Load stuff from launch options, including username
 	const Win64LaunchOptions launchOptions = ParseLaunchOptions();
 	ApplyScreenMode(launchOptions.screenMode);
-	
+
 	// load resolution from resolution.txt
 	char resPath[MAX_PATH] = {};
 	_snprintf_s(resPath, sizeof(resPath), _TRUNCATE, "%sresolution.txt", exePath);
@@ -1774,6 +1775,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		return 1;
 	}
 	g_bResizeReady = true;
+
 	//app.TemporaryCreateGameStart();
 
 	//Sleep(10000);
