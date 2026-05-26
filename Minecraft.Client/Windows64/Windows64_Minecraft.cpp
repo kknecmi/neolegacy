@@ -149,7 +149,7 @@ static void CopyWideArgToAnsi(LPCWSTR source, char* dest, size_t destSize)
 	dest[destSize - 1] = 0;
 }
 
-// ---------- Persistent options (options.txt next to exe) ----------
+// ---------- Persistent options (options.txt next to exe) ---------- OUTDATED NEEDS UPDATE FOR .DAT FILES ----------
 static void GetOptionsFilePath(char *out, size_t outSize)
 {
 	GetModuleFileNameA(nullptr, out, static_cast<DWORD>(outSize));
@@ -190,6 +190,27 @@ static bool LoadFullscreenOption()
 		fclose(f);
 	}
 	return false;
+}
+static bool Win64_GetFullscreenGet()
+{
+    char filePath[MAX_PATH] = {};
+    GetModuleFileNameA(nullptr, filePath, MAX_PATH);
+    char *lastSlash = strrchr(filePath, '\\');
+    if (lastSlash) *(lastSlash + 1) = '\0';
+    strncat_s(filePath, MAX_PATH, "settings.dat", _TRUNCATE);
+
+    FILE *f = nullptr;
+    if (fopen_s(&f, filePath, "rb") == 0 && f)
+    {
+        GAME_SETTINGS temp = {};
+        if (fread(&temp, sizeof(GAME_SETTINGS), 1, f) == 1)
+        {
+            fclose(f);
+            return (temp.uiBitmaskValues & (1UL << 25)) != 0;
+        }
+        fclose(f);
+    }
+    return false;
 }
 // ------------------------------------------------------------------
 
@@ -824,7 +845,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		return FALSE;
 	}
 
-	
+	ShowWindow(g_hWnd, (nCmdShow != SW_HIDE) ? SW_SHOWMAXIMIZED : nCmdShow);
+	UpdateWindow(g_hWnd);
 
 	return TRUE;
 }
@@ -1455,9 +1477,8 @@ void CleanupDevice()
 static Minecraft* InitialiseMinecraftRuntime()
 {
 	app.loadMediaArchive();
-	// @CDevJoud: No need to call this method as it gets called once in `InitDevice()`
-	// Calling it again and it results of 20MB of memory leak!
-	//RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
+
+	RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
 
 	app.loadStringTable();
 	ui.init(g_pd3dDevice, g_pImmediateContext, g_pRenderTargetView, g_pDepthStencilView, g_rScreenWidth, g_rScreenHeight);
@@ -1574,7 +1595,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	// Load stuff from launch options, including username
 	const Win64LaunchOptions launchOptions = ParseLaunchOptions();
 	ApplyScreenMode(launchOptions.screenMode);
-
+	
 	// load resolution from resolution.txt
 	char resPath[MAX_PATH] = {};
 	_snprintf_s(resPath, sizeof(resPath), _TRUNCATE, "%sresolution.txt", exePath);
@@ -1695,16 +1716,27 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		CleanupDevice();
 		return 0;
 	}
-
 	// Restore fullscreen state from previous session. Route through the
 	// deferred exclusive fullscreen path so the main loop applies it on the
 	// first tick (safer than transitioning during init).
-	if ((LoadFullscreenOption() && !g_isFullscreen) || launchOptions.fullscreen)
+
+	bool FullScreenEnabled = Win64_GetFullscreenGet();
+	if (launchOptions.fullscreen)
+		FullScreenEnabled = true;
+
+	if (FullScreenEnabled && !g_isFullscreen)
 	{
 		g_bPendingExclusiveFullscreen = true;
 		g_bPendingExclusiveFullscreenValue = true;
 	}
-
+	/*
+	if ((LoadFullscreenOption() && !g_isFullscreen) || launchOptions.fullscreen)
+	{
+		OutputDebugStringA("2");
+		g_bPendingExclusiveFullscreen = true;
+		g_bPendingExclusiveFullscreenValue = true;
+	}
+	*/
 #if 0
 	// Main message loop
 	MSG msg = {0};
@@ -1764,7 +1796,6 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		return 1;
 	}
 	g_bResizeReady = true;
-	
 	//app.TemporaryCreateGameStart();
 
 	//Sleep(10000);
@@ -1790,20 +1821,6 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		hr = XuiTimersRun();
 	}
 #endif
-
-	// @CDevJoud The window should only be shown after the engine/game
-	// initialization has fully completed.
-	//
-	// Showing the window too early especially on low end devices,
-	// may cause windows to display a "Not Responding" state while
-	// initialization is still in progress.
-	//
-	// This creates an unprofessional first impression for the player.
-	// Instead, initialize all engine systems first, then display the
-	// window once everything is ready.
-	ShowWindow(g_hWnd, (nCmdShow != SW_HIDE) ? SW_SHOWMAXIMIZED : nCmdShow);
-	UpdateWindow(g_hWnd);
-
 	MSG msg = {0};
 	while( WM_QUIT != msg.message && !app.m_bShutdown)
 	{
