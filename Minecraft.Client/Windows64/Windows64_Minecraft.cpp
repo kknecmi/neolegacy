@@ -149,68 +149,57 @@ static void CopyWideArgToAnsi(LPCWSTR source, char* dest, size_t destSize)
 	dest[destSize - 1] = 0;
 }
 
-// ---------- Persistent options (options.txt next to exe) ---------- OUTDATED NEEDS UPDATE FOR .DAT FILES ----------
-static void GetOptionsFilePath(char *out, size_t outSize)
+// ---------- Persistent options (options.dat next to exe) ----------
+static void GetOptionsFilePath(char *outPath, DWORD size)
 {
-	GetModuleFileNameA(nullptr, out, static_cast<DWORD>(outSize));
-	char *p = strrchr(out, '\\');
-	if (p) *(p + 1) = '\0';
-	strncat_s(out, outSize, "options.txt", _TRUNCATE);
+    GetModuleFileNameA(nullptr, outPath, size);
+    char *lastSlash = strrchr(outPath, '\\');
+    if (lastSlash) *(lastSlash + 1) = '\0';
+    strncat_s(outPath, size, "settings.dat", _TRUNCATE);
 }
 
 static void SaveFullscreenOption(bool fullscreen)
 {
-	char path[MAX_PATH];
-	GetOptionsFilePath(path, sizeof(path));
-	FILE *f = nullptr;
-	if (fopen_s(&f, path, "w") == 0 && f)
-	{
-		fprintf(f, "fullscreen=%d\n", fullscreen ? 1 : 0);
-		fclose(f);
-	}
+    GAME_SETTINGS settings = {};
+    
+    char filePath[MAX_PATH] = {};
+    GetOptionsFilePath(filePath, MAX_PATH);
+    FILE *f = nullptr;
+    if (fopen_s(&f, filePath, "rb") == 0 && f)
+    {
+        fread(&settings, sizeof(GAME_SETTINGS), 1, f);
+        fclose(f);
+    }
+
+    if (fullscreen)
+        settings.uiBitmaskValues |= (1UL << 25);
+    else
+        settings.uiBitmaskValues &= ~(1UL << 25);
+
+	if (fopen_s(&f, filePath, "wb") == 0 && f)
+    {
+        fwrite(&settings, sizeof(GAME_SETTINGS), 1, f);
+        fclose(f);
+    }
 }
 
 static bool LoadFullscreenOption()
 {
-	char path[MAX_PATH];
-	GetOptionsFilePath(path, sizeof(path));
-	FILE *f = nullptr;
-	if (fopen_s(&f, path, "r") == 0 && f)
-	{
-		char line[256];
-		while (fgets(line, sizeof(line), f))
-		{
-			int val = 0;
-			if (sscanf_s(line, "fullscreen=%d", &val) == 1)
-			{
-				fclose(f);
-				return val != 0;
-			}
-		}
-		fclose(f);
-	}
-	return false;
-}
-static bool Win64_GetFullscreenGet()
-{
     char filePath[MAX_PATH] = {};
-    GetModuleFileNameA(nullptr, filePath, MAX_PATH);
-    char *lastSlash = strrchr(filePath, '\\');
-    if (lastSlash) *(lastSlash + 1) = '\0';
-    strncat_s(filePath, MAX_PATH, "settings.dat", _TRUNCATE);
-
+	GetOptionsFilePath(path, sizeof(path));
+    
     FILE *f = nullptr;
-    if (fopen_s(&f, filePath, "rb") == 0 && f)
-    {
-        GAME_SETTINGS temp = {};
-        if (fread(&temp, sizeof(GAME_SETTINGS), 1, f) == 1)
-        {
-            fclose(f);
-            return (temp.uiBitmaskValues & (1UL << 25)) != 0;
-        }
-        fclose(f);
-    }
-    return false;
+    if (fopen_s(&f, filePath, "rb") != 0 || !f)
+        return false;
+    
+    GAME_SETTINGS current = {};
+    bool ok = (fread(&current, sizeof(GAME_SETTINGS), 1, f) == 1);
+    fclose(f);
+    
+    if (!ok)
+        return false;
+
+    return (current.uiBitmaskValues & (1UL << 25)) != 0;
 }
 // ------------------------------------------------------------------
 
@@ -845,9 +834,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		return FALSE;
 	}
 
-	ShowWindow(g_hWnd, (nCmdShow != SW_HIDE) ? SW_SHOWMAXIMIZED : nCmdShow);
-	UpdateWindow(g_hWnd);
-
 	return TRUE;
 }
 
@@ -1478,7 +1464,9 @@ static Minecraft* InitialiseMinecraftRuntime()
 {
 	app.loadMediaArchive();
 
-	RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
+	// @CDevJoud: No need to call this method as it gets called once in `InitDevice()`
+	// Calling it again and it results of 20MB of memory leak!
+	//RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
 
 	app.loadStringTable();
 	ui.init(g_pd3dDevice, g_pImmediateContext, g_pRenderTargetView, g_pDepthStencilView, g_rScreenWidth, g_rScreenHeight);
@@ -1720,23 +1708,13 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	// deferred exclusive fullscreen path so the main loop applies it on the
 	// first tick (safer than transitioning during init).
 
-	bool FullScreenEnabled = Win64_GetFullscreenGet();
-	if (launchOptions.fullscreen)
-		FullScreenEnabled = true;
-
+	bool FullScreenEnabled = LoadFullscreenOption();
 	if (FullScreenEnabled && !g_isFullscreen)
 	{
 		g_bPendingExclusiveFullscreen = true;
 		g_bPendingExclusiveFullscreenValue = true;
 	}
-	/*
-	if ((LoadFullscreenOption() && !g_isFullscreen) || launchOptions.fullscreen)
-	{
-		OutputDebugStringA("2");
-		g_bPendingExclusiveFullscreen = true;
-		g_bPendingExclusiveFullscreenValue = true;
-	}
-	*/
+
 #if 0
 	// Main message loop
 	MSG msg = {0};
