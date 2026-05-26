@@ -150,22 +150,22 @@ static void CopyWideArgToAnsi(LPCWSTR source, char* dest, size_t destSize)
 }
 
 // ---------- Persistent options (options.dat next to exe) ----------
-static void GetOptionsFilePath(char *outPath, DWORD size)
+static void GetOptionsFilePath(char *out, DWORD outSize)
 {
-    GetModuleFileNameA(nullptr, outPath, size);
-    char *lastSlash = strrchr(outPath, '\\');
-    if (lastSlash) *(lastSlash + 1) = '\0';
-    strncat_s(outPath, size, "settings.dat", _TRUNCATE);
+    GetModuleFileNameA(nullptr, out, outSize);
+    char *p = strrchr(out, '\\');
+    if (p) *(p + 1) = '\0';
+    strncat_s(out, outSize, "settings.dat", _TRUNCATE);
 }
 
 static void SaveFullscreenOption(bool fullscreen)
 {
     GAME_SETTINGS settings = {};
     
-    char filePath[MAX_PATH] = {};
-    GetOptionsFilePath(filePath, MAX_PATH);
+    char path[MAX_PATH] = {};
+    GetOptionsFilePath(path, MAX_PATH);
     FILE *f = nullptr;
-    if (fopen_s(&f, filePath, "rb") == 0 && f)
+    if (fopen_s(&f, path, "rb") == 0 && f)
     {
         fread(&settings, sizeof(GAME_SETTINGS), 1, f);
         fclose(f);
@@ -176,7 +176,7 @@ static void SaveFullscreenOption(bool fullscreen)
     else
         settings.uiBitmaskValues &= ~(1UL << 25);
 
-	if (fopen_s(&f, filePath, "wb") == 0 && f)
+	if (fopen_s(&f, path, "wb") == 0 && f)
     {
         fwrite(&settings, sizeof(GAME_SETTINGS), 1, f);
         fclose(f);
@@ -185,11 +185,11 @@ static void SaveFullscreenOption(bool fullscreen)
 
 static bool LoadFullscreenOption()
 {
-    char filePath[MAX_PATH] = {};
+    char path[MAX_PATH] = {};
 	GetOptionsFilePath(path, sizeof(path));
     
     FILE *f = nullptr;
-    if (fopen_s(&f, filePath, "rb") != 0 || !f)
+    if (fopen_s(&f, path, "rb") != 0 || !f)
         return false;
     
     GAME_SETTINGS current = {};
@@ -1799,6 +1799,20 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		hr = XuiTimersRun();
 	}
 #endif
+
+	// @CDevJoud The window should only be shown after the engine/game
+	// initialization has fully completed.
+	//
+	// Showing the window too early especially on low end devices,
+	// may cause windows to display a "Not Responding" state while
+	// initialization is still in progress.
+	//
+	// This creates an unprofessional first impression for the player.
+	// Instead, initialize all engine systems first, then display the
+	// window once everything is ready.
+	ShowWindow(g_hWnd, (nCmdShow != SW_HIDE) ? SW_SHOWMAXIMIZED : nCmdShow);
+	UpdateWindow(g_hWnd);
+
 	MSG msg = {0};
 	while( WM_QUIT != msg.message && !app.m_bShutdown)
 	{
